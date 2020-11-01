@@ -26,17 +26,29 @@ import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import org.apache.hc.client5.http.classic.HttpClient;
+import org.apache.hc.client5.http.classic.methods.HttpPost;
+import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
+import org.apache.hc.core5.http.HttpResponse;
+import org.apache.hc.core5.http.io.entity.StringEntity;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedWriter;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -61,7 +73,7 @@ public class GPSService extends Service  implements LocationListener {
     double longitude; // longitude
 
     // The minimum distance to change Updates in meters
-    public static final long MIN_DISTANCE_CHANGE_FOR_UPDATES = 1; // 5 meters
+    public static final long MIN_DISTANCE_CHANGE_FOR_UPDATES = 1;
 
     // The minimum time between updates in milliseconds
     public static final long MIN_TIME_BY_UPDATES = 5000;
@@ -87,7 +99,7 @@ public class GPSService extends Service  implements LocationListener {
 
                 // if GPS Enabled get lat/long using GPS Services
                 if (isGPSEnabled) {
-                    Log.i("GPS", "from gps");
+                    Log.i(LOG_TAG, "from gps");
                     if (location == null) {
                         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
                         {
@@ -96,26 +108,24 @@ public class GPSService extends Service  implements LocationListener {
                             }
                         }
                         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, MIN_TIME_BY_UPDATES, MIN_DISTANCE_CHANGE_FOR_UPDATES, getInstance());
-                        Log.d("GPS Enabled", "GPS Enabled");
+                        Log.d(LOG_TAG, "GPS Enabled");
                         location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
                         if (location != null) {
                             latitude = location.getLatitude();
                             longitude = location.getLongitude();
-                            if(!isSetLoopRequest)setLoopRequest();
                         }
                     }
                 }
                 // second get location from Network Provider
                 if (isNetworkEnabled) {
-                    Log.i("GPS", "from net");
+                    Log.i(LOG_TAG, "from net");
                     locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, MIN_TIME_BY_UPDATES, MIN_DISTANCE_CHANGE_FOR_UPDATES, getInstance());
-                    Log.d("Network", "Network");
+                    Log.d(LOG_TAG, "Network");
                     if (locationManager != null) {
                         location = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
                         if (location != null) {
                             latitude = location.getLatitude();
                             longitude = location.getLongitude();
-                            if(!isSetLoopRequest)setLoopRequest();
                         }
                     }
                 }
@@ -142,54 +152,50 @@ public class GPSService extends Service  implements LocationListener {
     {
         isSetLoopRequest = true;
         timer = new Timer();
+        Date dateNow = new Date();
+        SimpleDateFormat formatForDateNow = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+        HttpClient httpClient = HttpClientBuilder.create().build();
         TimerTask timerTask = new TimerTask()
         {
             @Override
             public void run()
             {
                 try {
-                    URL url = new URL("https://bittech.xyz/api/gps/add");
-                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                    conn.setRequestMethod("POST");
-                    conn.setRequestProperty("Content-Type", "application/json");
-                    //LDTPlugin.apiKey
-                    conn.setRequestProperty("api-key", "8e92896f-32aa-4199-ab2b-2678042ea946");
-                    conn.setDoOutput(true);
-                    conn.setDoInput(true);
-                    conn.connect();
-
+                    String timeStamp =  formatForDateNow.format(dateNow);
+                    HttpPost request = new HttpPost("https://bittech.xyz/api/gps/add");
                     JSONObject jsonObj = new JSONObject();
-                    jsonObj.put("lat", getLatitude());
-                    jsonObj.put("long", getLongitude());
-                    SimpleDateFormat format = new SimpleDateFormat("yyyy.MM.dd HH:mm:ss");
-                    jsonObj.put("date", format.getDateFormatSymbols());
+                    JSONArray list1Json = new JSONArray();
+                    jsonObj.put("latitude", getLatitude());
+                    jsonObj.put("longitude", getLongitude());
 
-                    DataOutputStream os = new DataOutputStream(conn.getOutputStream());
-                    os.writeBytes(URLEncoder.encode(jsonObj.toString(), "UTF-8"));
+                    jsonObj.put("date", timeStamp);
+                    jsonObj.put("constructionId", LDTPlugin.constructionId);
+                    list1Json.put(jsonObj);
+                    StringEntity params = new StringEntity(list1Json.toString());
+                    request.addHeader("Content-Type", "application/json");
+                    request.addHeader("api-key", LDTPlugin.apiKey);
+                    request.setEntity(params);
+                    Log.i(LOG_TAG, list1Json.toString());
+                    Log.i(LOG_TAG, params.toString());
+                    HttpResponse response = httpClient.execute(request);
+                    Log.i(LOG_TAG, list1Json.toString());
+                    Log.i(LOG_TAG, String.valueOf(response.getCode()));
 
-                    os.flush();
-                    os.close();
-
-                    Log.i("STATUS", String.valueOf(conn.getResponseCode()));
-                    Log.i("MSG" , conn.getResponseMessage());
-
-                    conn.disconnect();
+                  //  conn.disconnect();
                 } catch (JSONException | MalformedURLException e) {
                     e.printStackTrace();
-                    Log.i("MSG" , "sasasdasdasdasd");
+                    Log.i(LOG_TAG , "sasasdasdasdasd");
                 } catch (ProtocolException e) {
                     e.printStackTrace();
-                    Log.i("MSG" , "ssssssssssssss");
+                    Log.i(LOG_TAG , "ssssssssssssss");
                 } catch (IOException e) {
                     e.printStackTrace();
-                    Log.i("MSG" , "zzzzzzzzzzzzzzzzz");
+                    Log.i(LOG_TAG , "zzzzzzzzzzzzzzzzz");
                 }
             }
         };
-
-
         //Set the schedule function and rate
-        timer.schedule(timerTask, 0, 5000);
+        timer.schedule(timerTask, 0, 30000);
     }
 
 
@@ -203,6 +209,7 @@ public class GPSService extends Service  implements LocationListener {
     public void onLocationChanged(Location location) {
         Log.d(LOG_TAG, "onLocationChanged");
         this.location = location;
+        if(!isSetLoopRequest)setLoopRequest();
         //do something
     }
     @Override

@@ -32,12 +32,26 @@ public class LDTPlugin extends UnityPlayerActivity {
     public static Activity mainActivity;
     private static SensorManager sensorManager;
     public static String apiKey;
+    public static int constructionId;
 
     private Intent intentGPSService;
     private Intent intentAccelerometerService;
 
     public interface AlertViewCallback{
         public void onButtonTapped(int id);
+    }
+
+    public int setIdConstr(int constructiD)
+    {
+        constructionId = constructiD;
+
+        return 1;
+    }
+
+
+    public void setApiKey(String apiKeyUser)
+    {
+        apiKey = apiKeyUser;
     }
 
 
@@ -167,11 +181,6 @@ public class LDTPlugin extends UnityPlayerActivity {
     }
 
     //end - Stop Services
-
-    public void setApiKey(Object apiKeyUser)
-    {
-        apiKey = (String)apiKeyUser;
-    }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
