@@ -146,6 +146,7 @@ public class GPSService extends Service  implements LocationListener {
     }
 
     Timer timer;
+    TimerTask timerTask;
     int seconds = 10;
     boolean isSetLoopRequest = false;
     public void setLoopRequest()
@@ -155,7 +156,7 @@ public class GPSService extends Service  implements LocationListener {
         Date dateNow = new Date();
         SimpleDateFormat formatForDateNow = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
         HttpClient httpClient = HttpClientBuilder.create().build();
-        TimerTask timerTask = new TimerTask()
+        timerTask = new TimerTask()
         {
             @Override
             public void run()
@@ -209,7 +210,7 @@ public class GPSService extends Service  implements LocationListener {
     public void onLocationChanged(Location location) {
         Log.d(LOG_TAG, "onLocationChanged");
         this.location = location;
-        if(!isSetLoopRequest)setLoopRequest();
+        if(!isSetLoopRequest && timerTask == null)setLoopRequest();
         //do something
     }
     @Override
@@ -276,6 +277,18 @@ public class GPSService extends Service  implements LocationListener {
         if (locationManager != null) {
             locationManager.removeUpdates(getInstance());
         }
+
+        if(timer != null)
+        {
+            timer.cancel();
+        }
+
+        if(timerTask != null)
+        {
+            timerTask.cancel();
+            timerTask = null;
+        }
+        isSetLoopRequest = false;
     }
 
     public boolean canGetLocation() {
